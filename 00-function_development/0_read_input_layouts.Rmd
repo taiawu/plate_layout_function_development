@@ -1,0 +1,18 @@
+---
+title: "read input layouts"
+output: html_notebook
+---
+
+This notebook compiles the existing functions and tests for reading input layouts outside of the context of RShiny applications.
+
+I have written drafts of RShiny application modules, but those are not relevant here. 
+
+As of now, the main source of these functions is the dsfworld package. 
+
+Copy-pasting those functions here...
+
+```{r}
+
+```
+
+
