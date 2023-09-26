@@ -29,18 +29,9 @@ read_plate_layout
 styler::style_file("../00-function_development/01-updated_functions/read_plate_layout.R")
 ```
 
-
 ```{r}
-
 library(tools)
-# #library(readr read_csv read_tsv parse_guess
-# library(readxl read_excel
-# library(purrr set_names discard
-# library(dplyr filter if_all mutate across
-# library(tidyr pivot_longer pivot_wider unite
-# library(utils "globalVariables"
-# library(rlang .data
-#' 
+
 tested_layouts <- lapply(SAMPLE_LAYOUTS, read_plate_layout)
 tested_layouts
 ```

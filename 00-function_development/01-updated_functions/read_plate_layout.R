@@ -15,7 +15,7 @@
 #' @importFrom readr read_csv read_tsv parse_guess
 #' @importFrom readxl read_excel
 #' @importFrom purrr set_names discard
-#' @importFrom dplyr filter if_all mutate across slice
+#' @importFrom dplyr filter if_all mutate across slice relocate
 #' @importFrom tidyr pivot_longer pivot_wider unite
 #' @importFrom utils "globalVariables"
 #' @importFrom rlang .data
@@ -58,5 +58,7 @@ read_plate_layout <- function(filepath, ...) {
       if_all(everything(), ~ .x != "Empty"), # drop if all are "empty" or NA (also empty)
       if_all(everything(), ~ !is.na(.x))
     ) |>
-    mutate(across(everything(), parse_guess)) # convert likely numeric variables to numeric
+    mutate(across(everything(), parse_guess)) |> # convert likely numeric variables to numeric
+    relocate("well") |> # well as first column
+    relocate(any_of(c("row", "column")), .after = last_col()) # separate row and column info as last columns
 }
