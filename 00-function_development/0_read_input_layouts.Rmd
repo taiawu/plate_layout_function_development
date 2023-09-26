@@ -9,8 +9,6 @@ I have written drafts of RShiny application modules, but those are not relevant 
 
 As of now, the main source of these functions is the dsfworld package. 
 
-Copy-pasting those functions here...
-
 ```{r}
 library(tidyverse)
 ```
@@ -19,65 +17,21 @@ Get sample layout directories to test updated function
 SAMPLE_LAYOUTS <- fs::dir_ls("../01-sample_inputs")
 ```
 
-Read in the script containing the function to test
-```{r}
-source("../00-function_development/01-updated_functions/read_plate_layout.R")
-read_plate_layout
-```
-
+Style the function script
 ```{r}
 styler::style_file("../00-function_development/01-updated_functions/read_plate_layout.R")
 ```
-
+Read in the script containing the function to test
 ```{r}
-library(tools)
-
-tested_layouts <- lapply(SAMPLE_LAYOUTS, read_plate_layout)
-tested_layouts
+source("../00-function_development/01-updated_functions/read_plate_layout.R")
+# read_plate_layout
 ```
 
+Try loading a bunch of layouts
 ```{r}
-read_plate_layout_test <- function(filepath) {
-  
-  # read file based on it's type
-  ext <- file_ext(filepath)
-  
-  raw <- switch(ext,
-                csv = read_csv(filepath, col_names = FALSE),
-                txt = read_tsv(filepath, col_names = FALSE),
-                xlsx = read_excel(filepath, col_names = FALSE),
-                xls =  read_excel(filepath, col_names = FALSE)
-  ) %>% base:: suppressMessages()
-  
-  # handle files with or without the "Type" header
-  first_cell <- raw[1,1][[1]]
-  out <- switch(first_cell,
-                Type = raw[-1,],
-                raw)
-  
-  # get column names
-  plate_col_names <- c("variable", "row", slice(out, 1)[-c(1,2)])
-  
-  # convert into layout form
-  out |>
-    set_names(plate_col_names) |>
-    filter(row %in% c(base::letters[1:16],base::LETTERS[1:16])) |>
-    discard(~all(is.na(.x)))  |> # drop columns if everything is NA
-    filter(if_all(everything(), ~ !is.na(.x))) |>
-    mutate(across(everything(), as.character)) |> # make all character, to prevent issues in pivot
-    pivot_longer(-c("variable", "row"), names_to = "column", values_to = "value") |>
-    pivot_wider(names_from = "variable", values_from = "value") |>
-    mutate(well = paste0(.data$row, .data$column)) |> # make well column
-    unite(condition, -c("row", "column", "well"), sep = "__", remove = FALSE)  |>
-    filter(if_all(everything(), ~ .x != "Empty"), # drop if all are "empty" or NA (also empty)
-           if_all(everything(), ~ !is.na(.x))) |>
-    mutate(across(everything(), parse_guess)) # convert likely numeric variables to numeric
-}
-
-tested_layouts <- lapply(SAMPLE_LAYOUTS, read_plate_layout_test)
-
+library(tools)
+tested_layouts <- lapply(SAMPLE_LAYOUTS, read_plate_layout)
 tested_layouts
-  
 ```
 
 

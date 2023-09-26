@@ -1,6 +1,6 @@
 #' Read a plate layout file into a tibble
 #'
-#' read_layout() reads a plate layout file (.csv, .txt, .xls, or .xlsx), and returns it as a formatted tibble. Variable types are guessed with readr::parse_guess(). The originally required "Type" column heading is now optional.
+#' read_layout() reads a raw plate layout file (.csv, .txt, .xls, or .xlsx), and returns it as a formatted tibble. Variables are coerced to numeric if indicated by readr::parse_guess(). The originally required "Type" column heading is now optional.
 #'
 #'
 #'
@@ -23,7 +23,7 @@
 #'
 #' @export
 read_plate_layout <- function(filepath, ...) {
-  # read file based on it's type
+  # Read file based on extension  --------------------------------------------------------------
   ext <- file_ext(filepath)
 
   raw <- switch(ext,
@@ -40,13 +40,14 @@ read_plate_layout <- function(filepath, ...) {
     raw
   )
 
+  # Format as layout  --------------------------------------------------------------
   # get column names
   plate_col_names <- c("variable", "row", slice(out, 1)[-c(1, 2)])
 
   # convert into layout form
   out |>
     set_names(plate_col_names) |>
-    filter(row %in% c(base::letters[1:16], base::LETTERS[1:16])) |>
+    filter(.data$row %in% c(base::letters[1:16], base::LETTERS[1:16])) |>
     discard(~ all(is.na(.x))) |> # drop columns if everything is NA
     filter(if_all(everything(), ~ !is.na(.x))) |>
     mutate(across(everything(), as.character)) |> # make all character, to prevent issues in pivot
