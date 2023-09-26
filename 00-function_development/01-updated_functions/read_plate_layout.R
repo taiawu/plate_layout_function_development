@@ -1,6 +1,6 @@
 #' Read a plate layout file into a tibble
 #'
-#'read_layout() reads a plate layout file (.csv, .txt, .xls, or .xlsx), and returns it as a formatted tibble. Variable types are guessed with readr::parse_guess(). The originally required "Type" column heading is now optional.
+#' read_layout() reads a plate layout file (.csv, .txt, .xls, or .xlsx), and returns it as a formatted tibble. Variable types are guessed with readr::parse_guess(). The originally required "Type" column heading is now optional.
 #'
 #'
 #'
@@ -21,40 +21,41 @@
 #'
 #' @export
 read_plate_layout <- function(filepath) {
-  
-  
   # read file based on it's type
   ext <- file_ext(filepath)
-  
+
   raw <- switch(ext,
-                csv = read_csv(filepath, col_names = FALSE),
-                txt = read_tsv(filepath, col_names = FALSE),
-                xlsx = read_excel(filepath, col_names = FALSE),
-                xls =  read_excel(filepath, col_names = FALSE)
-  ) %>% base:: suppressMessages()
-  
+    csv = read_csv(filepath, col_names = FALSE),
+    txt = read_tsv(filepath, col_names = FALSE),
+    xlsx = read_excel(filepath, col_names = FALSE),
+    xls = read_excel(filepath, col_names = FALSE)
+  ) %>% base::suppressMessages()
+
   # handle files with or without the "Type" header
-  first_cell <- raw[1,1][[1]]
+  first_cell <- raw[1, 1][[1]]
   out <- switch(first_cell,
-                Type = raw[-1,],
-                raw)
-  
+    Type = raw[-1, ],
+    raw
+  )
+
   # get column names
-  plate_col_names <- c("variable", "row", slice(out, 1)[-c(1,2)])
-  
+  plate_col_names <- c("variable", "row", slice(out, 1)[-c(1, 2)])
+
   # convert into layout form
   out |>
     set_names(plate_col_names) |>
-    filter(row %in% c(base::letters[1:16],base::LETTERS[1:16])) |>
-    discard(~all(is.na(.x)))  |> # drop columns if everything is NA
+    filter(row %in% c(base::letters[1:16], base::LETTERS[1:16])) |>
+    discard(~ all(is.na(.x))) |> # drop columns if everything is NA
     filter(if_all(everything(), ~ !is.na(.x))) |>
     mutate(across(everything(), as.character)) |> # make all character, to prevent issues in pivot
     pivot_longer(-c("variable", "row"), names_to = "column", values_to = "value") |>
     pivot_wider(names_from = "variable", values_from = "value") |>
     mutate(well = paste0(.data$row, .data$column)) |> # make well column
-    unite(condition, -c("row", "column", "well"), sep = "__", remove = FALSE)  |>
-    filter(if_all(everything(), ~ .x != "Empty"), # drop if all are "empty" or NA (also empty)
-           if_all(everything(), ~ !is.na(.x))) |>
+    unite(condition, -c("row", "column", "well"), sep = "__", remove = FALSE) |>
+    filter(
+      if_all(everything(), ~ .x != "Empty"), # drop if all are "empty" or NA (also empty)
+      if_all(everything(), ~ !is.na(.x))
+    ) |>
     mutate(across(everything(), parse_guess)) # convert likely numeric variables to numeric
 }
 
