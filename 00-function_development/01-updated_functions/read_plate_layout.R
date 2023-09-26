@@ -9,7 +9,6 @@
 #' @return Returns a tibble, mapping experimental variables to well positions. All outputs contain the columns: row, column, and well. Additionally, a single column is added for each user-defined variable in the plate layout file, from which one additional "condtion" column is created, which contains all experimental variables. If all experimental variables are defined in the layout, wells with identical entries in the "condition" column are technical replicates.
 #'
 #'
-#' @importFrom magrittr "%>%"
 #' @importFrom tidyselect everything
 #' @importFrom tools file_ext
 #' @importFrom readr read_csv read_tsv parse_guess
@@ -22,6 +21,7 @@
 #'
 #' @export
 read_plate_layout <- function(filepath) {
+  
   
   # read file based on it's type
   ext <- file_ext(filepath)
@@ -39,19 +39,22 @@ read_plate_layout <- function(filepath) {
                 Type = raw[-1,],
                 raw)
   
+  # get column names
+  plate_col_names <- c("variable", "row", slice(out, 1)[-c(1,2)])
+  
   # convert into layout form
-  out %>%
-    set_names( c("variable", "row", .[1,][-c(1,2)])) %>%
-    filter(row %in% c(base::letters[1:16],base::LETTERS[1:16])) %>%
-    discard(~all(is.na(.x)))  %>% # drop columns if everything is NA
-    filter(if_all(everything(), ~ !is.na(.x))) %>%
-    mutate(across(everything(), as.character)) %>% # make all character, to prevent issues in pivot
-    pivot_longer(-c("variable", "row"), names_to = "column", values_to = "value") %>%
-    pivot_wider(names_from = "variable", values_from = "value") %>%
-    mutate(well = paste0(.data$row, .data$column)) %>% # make well column
-    unite(condition, -c("row", "column", "well"), sep = "__", remove = FALSE)  %>% 
+  out |>
+    set_names(plate_col_names) |>
+    filter(row %in% c(base::letters[1:16],base::LETTERS[1:16])) |>
+    discard(~all(is.na(.x)))  |> # drop columns if everything is NA
+    filter(if_all(everything(), ~ !is.na(.x))) |>
+    mutate(across(everything(), as.character)) |> # make all character, to prevent issues in pivot
+    pivot_longer(-c("variable", "row"), names_to = "column", values_to = "value") |>
+    pivot_wider(names_from = "variable", values_from = "value") |>
+    mutate(well = paste0(.data$row, .data$column)) |> # make well column
+    unite(condition, -c("row", "column", "well"), sep = "__", remove = FALSE)  |>
     filter(if_all(everything(), ~ .x != "Empty"), # drop if all are "empty" or NA (also empty)
-           if_all(everything(), ~ !is.na(.x))) %>%
+           if_all(everything(), ~ !is.na(.x))) |>
     mutate(across(everything(), parse_guess)) # convert likely numeric variables to numeric
 }
 
