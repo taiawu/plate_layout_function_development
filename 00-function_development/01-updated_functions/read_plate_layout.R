@@ -1,47 +1,27 @@
----
-title: "read input layouts"
-output: html_notebook
----
-
-This notebook compiles the existing functions and tests for reading input layouts outside of the context of RShiny applications.
-
-I have written drafts of RShiny application modules, but those are not relevant here. 
-
-As of now, the main source of these functions is the dsfworld package. 
-
-Copy-pasting those functions here...
-
-```{r}
-library(tidyverse)
-```
-Get sample layout directories to test updated function
-```{r}
-SAMPLE_LAYOUTS <- fs::dir_ls("../01-sample_inputs")
-```
-
-Read in the script containing the function to test
-```{r}
-source("../00-function_development/01-updated_functions/read_plate_layout.R")
-read_plate_layout
-```
-
-```{r}
-
-library(tools)
-# #library(readr read_csv read_tsv parse_guess
-# library(readxl read_excel
-# library(purrr set_names discard
-# library(dplyr filter if_all mutate across
-# library(tidyr pivot_longer pivot_wider unite
-# library(utils "globalVariables"
-# library(rlang .data
-#' 
-tested_layouts <- lapply(SAMPLE_LAYOUTS, read_plate_layout)
-
-read_plate_layout
-```
-```{r}
-read_plate_layout_test <- function(filepath) {
+#' Read a plate layout file into a tibble
+#'
+#'read_layout() reads a plate layout file (.csv, .txt, .xls, or .xlsx), and returns it as a formatted tibble. Variable types are guessed with readr::parse_guess(). The originally required "Type" column heading is now optional.
+#'
+#'
+#'
+#' @param filepath A complete file path, pointing to the plate layout file
+#'
+#' @return Returns a tibble, mapping experimental variables to well positions. All outputs contain the columns: row, column, and well. Additionally, a single column is added for each user-defined variable in the plate layout file, from which one additional "condtion" column is created, which contains all experimental variables. If all experimental variables are defined in the layout, wells with identical entries in the "condition" column are technical replicates.
+#'
+#'
+#' @importFrom magrittr "%>%"
+#' @importFrom tidyselect everything
+#' @importFrom tools file_ext
+#' @importFrom readr read_csv read_tsv parse_guess
+#' @importFrom readxl read_excel
+#' @importFrom purrr set_names discard
+#' @importFrom dplyr filter if_all mutate across
+#' @importFrom tidyr pivot_longer pivot_wider unite
+#' @importFrom utils "globalVariables"
+#' @importFrom rlang .data
+#'
+#' @export
+read_plate_layout <- function(filepath) {
   
   # read file based on it's type
   ext <- file_ext(filepath)
@@ -71,16 +51,8 @@ read_plate_layout_test <- function(filepath) {
     mutate(well = paste0(.data$row, .data$column)) %>% # make well column
     unite(condition, -c("row", "column", "well"), sep = "__", remove = FALSE)  %>% 
     filter(if_all(everything(), ~ .x != "Empty"), # drop if all are "empty" or NA (also empty)
-         if_all(everything(), ~ !is.na(.x))) %>%
+           if_all(everything(), ~ !is.na(.x))) %>%
     mutate(across(everything(), parse_guess)) # convert likely numeric variables to numeric
 }
 
-library(readxl)
-
-tested_layouts <- lapply(SAMPLE_LAYOUTS, read_plate_layout_test)
-
-tested_layouts
-  
-```
-
-
+utils::globalVariables(c(".", "condition"))
