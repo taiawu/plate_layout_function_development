@@ -26,6 +26,11 @@ read_plate_layout
 ```
 
 ```{r}
+styler::style_file("../00-function_development/01-updated_functions/read_plate_layout.R")
+```
+
+
+```{r}
 
 library(tools)
 # #library(readr read_csv read_tsv parse_guess
