@@ -28,16 +28,16 @@ read_plate_layout <- function(filepath, ...) {
 
   raw <- switch(ext,
     csv = read_csv(filepath, col_names = FALSE),
-    txt = read_tsv(filepath, col_names = FALSE),
+    txt = read_tsv(filepath, col_names = FALSE), # fails with UTF-16
     xlsx = read_excel(filepath, col_names = FALSE),
     xls = read_excel(filepath, col_names = FALSE)
   ) %>% suppressMessages()
 
   # handle files with or without the "Type" header
-  first_cell <- raw[1, 1][[1]]
+  first_cell <- raw[1, 1][[1]] # extract value of top-left cell
   out <- switch(first_cell,
-    Type = raw[-1, ],
-    raw
+    Type = raw[-1, ], # if it includes "Type", drop this uneccessary top row
+    raw # otherwise, proceed unchanged
   )
 
   # Format as layout  --------------------------------------------------------------
@@ -49,16 +49,17 @@ read_plate_layout <- function(filepath, ...) {
     set_names(plate_col_names) |>
     filter(.data$row %in% c(base::letters[1:16], base::LETTERS[1:16])) |>
     discard(~ all(is.na(.x))) |> # drop columns if everything is NA
-    filter(if_all(everything(), ~ !is.na(.x))) |>
+    filter(if_all(everything(), ~ !is.na(.x))) |> # drop completely empty plate rows
     mutate(across(everything(), as.character)) |> # make all character, to prevent issues in pivot
     pivot_longer(-c("variable", "row"), names_to = "column", values_to = "value") |>
     pivot_wider(names_from = "variable", values_from = "value") |>
     mutate(well = paste0(.data$row, .data$column)) |> # make well column
     unite(condition, -c("row", "column", "well"), sep = "__", remove = FALSE) |>
-    filter(
-      if_all(everything(), ~ .x != "Empty"), # drop if all are "empty" or NA (also empty)
-      if_all(everything(), ~ !is.na(.x))
-    ) |>
+    filter( # only drop in all variables agree that the well is empty
+      !if_all(everything(), ~ any(.x == "Empty", .x == "empty", is.na(.x))) # drop if all are "Empty"
+    #   !if_all(everything(), ~ .x == "empty"), # "empty"
+    #   !if_all(everything(), ~ is.na(.x)) # or NA
+     ) |>
     mutate(across(everything(), parse_guess)) |> # convert likely numeric variables to numeric
     relocate("well") |> # well as first column
     relocate(any_of(c("row", "column")), .after = last_col()) # separate row and column info as last columns

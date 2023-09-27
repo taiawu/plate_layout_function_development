@@ -30,8 +30,36 @@ source("../00-function_development/01-updated_functions/read_plate_layout.R")
 Try loading a bunch of layouts
 ```{r}
 library(tools)
-tested_layouts <- lapply(SAMPLE_LAYOUTS, read_plate_layout)
-tested_layouts
+library(readr)
+library(readxl)
+
+SAMPLE_LAYOUTS <- fs::dir_ls("../01-sample_inputs")
+
+for (sample in SAMPLE_LAYOUTS) {
+  print(sample)
+  try(read_plate_layout(sample))
+}
+
+all_layouts <- lapply(SAMPLE_LAYOUTS, read_plate_layout)
+```
+
+```{r}
+all_layouts
+EMPTY_HANDLING <- SAMPLE_LAYOUTS[c(1:4, 9)]
+equal_empties <- lapply(EMPTY_HANDLING, read_plate_layout)
+equal_empties
+all(equal_empties[[3]] == equal_empties[[4]])
+
+READ_TYPES <- SAMPLE_LAYOUTS[5:8]
+STANDARD <- SAMPLE_LAYOUTS[10]
+
+all(equal_empties)
+all(equal_empties[[1]] == equal_empties[[1]])
+```
+
+```{r}
+head(mtcars) %>%
+  filter(!if_all(everything(), ~ .x == "Empty"))
 ```
 
 
