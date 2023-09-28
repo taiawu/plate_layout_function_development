@@ -14,10 +14,9 @@
 #' @importFrom tools file_ext
 #' @importFrom readr read_csv read_tsv parse_guess
 #' @importFrom readxl read_excel
-#' @importFrom purrr set_names discard
+#' @importFrom purrr set_names
 #' @importFrom dplyr filter if_all mutate across slice relocate
 #' @importFrom tidyr pivot_longer pivot_wider unite
-#' @importFrom utils "globalVariables"
 #' @importFrom rlang .data
 #' @importFrom rlang .data
 #'
@@ -36,7 +35,7 @@ read_plate_layout <- function(filepath, ...) {
   # handle files with or without the "Type" header
   first_cell <- raw[1, 1][[1]] # extract value of top-left cell
   out <- switch(first_cell,
-    Type = raw[-1, ], # if it includes "Type", drop this uneccessary top row
+    Type = raw[-1, ], # if it includes "Type", drop this unnecessary top row
     raw # otherwise, proceed unchanged
   )
 
@@ -47,20 +46,25 @@ read_plate_layout <- function(filepath, ...) {
   # convert into layout form
   out |>
     set_names(plate_col_names) |>
-    filter(.data$row %in% c(base::letters[1:16], base::LETTERS[1:16])) |>
-    discard(~ all(is.na(.x))) |> # drop columns if everything is NA
-    filter(if_all(everything(), ~ !is.na(.x))) |> # drop completely empty plate rows
+    # prepare plate-format data for pivoting
+    filter(
+      .data$row %in% c(base::letters[1:16], base::LETTERS[1:16]),
+      !if_all(.cols = -c("variable", "row"), ~ is.na(.x))
+    ) |> # drop empty columns before pivot
     mutate(across(everything(), as.character)) |> # make all character, to prevent issues in pivot
+
+    # give each experimental variable a column
     pivot_longer(-c("variable", "row"), names_to = "column", values_to = "value") |>
     pivot_wider(names_from = "variable", values_from = "value") |>
+    # add helpful columns: row, column, condition
     mutate(well = paste0(.data$row, .data$column)) |> # make well column
     unite(condition, -c("row", "column", "well"), sep = "__", remove = FALSE) |>
-    filter( # only drop in all variables agree that the well is empty
-      !if_all(everything(), ~ any(.x == "Empty", .x == "empty", is.na(.x))) # drop if all are "Empty"
-    #   !if_all(everything(), ~ .x == "empty"), # "empty"
-    #   !if_all(everything(), ~ is.na(.x)) # or NA
-     ) |>
+    # drop user-defined empty wells
+    filter(!if_all(.cols = -c("row", "column", "condition", "well"), ~ .x %in% c("Empty", "empty") | is.na(.x))) |>
+    # guess / coerce variables to numeric or character
     mutate(across(everything(), parse_guess)) |> # convert likely numeric variables to numeric
+
+    # rearrange columns for human readability
     relocate("well") |> # well as first column
     relocate(any_of(c("row", "column")), .after = last_col()) # separate row and column info as last columns
 }
