@@ -21,7 +21,7 @@
 #' @importFrom rlang .data
 #'
 #' @export
-read_plate_layout <- function(filepath, ...) {
+read_layout <- function(filepath, ...) {
   # Read file based on extension  --------------------------------------------------------------
   ext <- file_ext(filepath)
 
