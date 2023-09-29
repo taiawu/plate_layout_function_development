@@ -18,7 +18,6 @@
 #' @importFrom dplyr filter if_all mutate across slice relocate
 #' @importFrom tidyr pivot_longer pivot_wider unite
 #' @importFrom rlang .data
-#' @importFrom rlang .data
 #'
 #' @export
 read_layout <- function(filepath, ...) {

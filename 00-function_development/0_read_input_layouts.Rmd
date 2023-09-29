@@ -12,6 +12,7 @@ As of now, the main source of these functions is the dsfworld package.
 ```{r}
 library(tidyverse)
 ```
+
 Get sample layout directories to test updated function
 ```{r}
 SAMPLE_LAYOUTS <- fs::dir_ls("../01-sample_inputs")
@@ -43,138 +44,14 @@ library(readxl)
 all_layouts <- lapply(SAMPLE_LAYOUTS, read_plate_layout)
 ```
 
+Test lap: load the package as it currently exists!
 ```{r}
-
-```
-
-```{r}
-read_plate_layout_test <- function(filepath, ...) {
-  # Read file based on extension  --------------------------------------------------------------
-  ext <- file_ext(filepath)
-
-  raw <- switch(ext,
-    csv = read_csv(filepath, col_names = FALSE),
-    txt = read_tsv(filepath, col_names = FALSE), # fails with UTF-16
-    xlsx = read_excel(filepath, col_names = FALSE),
-    xls = read_excel(filepath, col_names = FALSE)
-  ) %>% suppressMessages()
-
-  # handle files with or without the "Type" header
-  first_cell <- raw[1, 1][[1]] # extract value of top-left cell
-  out <- switch(first_cell,
-    Type = raw[-1, ], # if it includes "Type", drop this unnecessary top row
-    raw # otherwise, proceed unchanged
-  )
-
-  # Format as layout  --------------------------------------------------------------
-  # get column names
-  plate_col_names <- c("variable", "row", slice(out, 1)[-c(1, 2)])
-
-  # convert into layout form
-  out |>
-    set_names(plate_col_names) |>
-    
-    
-    # prepare plate-format data for pivoting
-    filter(.data$row %in% c(base::letters[1:16], base::LETTERS[1:16]),
-           !if_all(.cols = -c("variable", "row"), ~is.na(.x))) |>  # drop empty columns before pivot
-    mutate(across(everything(), as.character)) |> # make all character, to prevent issues in pivot
-    
-    # give each experimental variable a column
-    pivot_longer(-c("variable", "row"), names_to = "column", values_to = "value") |>
-    pivot_wider(names_from = "variable", values_from = "value") |>
-    
-    # add helpful columns: row, column, condition
-    mutate(well = paste0(.data$row, .data$column)) |> # make well column
-    unite(condition, -c("row", "column", "well"), sep = "__", remove = FALSE) |> 
-    
-    # drop user-defined empty wells
-    filter(!if_all(.cols = -c("row", "column", "condition","well"), ~.x %in% c("Empty", "empty") | is.na(.x))) |> 
-    
-    # guess / coerce variables to numeric or character
-    mutate(across(everything(), parse_guess)) |> # convert likely numeric variables to numeric
-    
-    # rearrange columns for human readability
-    relocate("well") |> # well as first column
-    relocate(any_of(c("row", "column")), .after = last_col()) # separate row and column info as last columns
-}
-
-
-```
-
-Try loading a bunch of layouts
-```{r}
-library(tools)
-library(readr)
-library(readxl)
+library(platedescribr) # load the package
 
 SAMPLE_LAYOUTS <- fs::dir_ls("../01-sample_inputs")
 
-for (sample in SAMPLE_LAYOUTS) {
-  print(sample)
-  try(read_plate_layout_test(sample))
-}
-
-all_layouts <- lapply(SAMPLE_LAYOUTS, read_plate_layout_test)
-
-all_layouts 
-  
+lapply(SAMPLE_LAYOUTS, platedescribr::read_layout)
 ```
 
-```{r}
-EMPTY_HANDLING <- SAMPLE_LAYOUTS[c(1:4, 9)]
-equal_empties <- lapply(EMPTY_HANDLING, read_plate_layout_test)
-
-equal_empties[[1]]
-
-pre_filt <- read_plate_layout_test(EMPTY_HANDLING[[3]])
-
-pre_filt |>
-  filter(!if_all(.cols = -c("row", "column", "condition","well"), ~.x %in% c("Empty", "empty") | is.na(.x)))
-
-pre_filt
-
-
-  filter(!if_all(.cols = -c("variable", "row"), ~is.na(.x))) |>  # drop empty columns before pivot
-  mutate(across(everything(), as.character)) |> # make all character, to prevent issues in pivot
-  pivot_longer(-c("variable", "row"), names_to = "column", values_to = "value") |>
-  pivot_wider(names_from = "variable", values_from = "value") |>
-  mutate(well = paste0(.data$row, .data$column)) |> # make well column
-  unite(condition, -c("row", "column", "well"), sep = "__", remove = FALSE) |> 
-  filter(!if_all(.cols = -c("row", "column", "condition","well"), ~.x %in% c("Empty", "empty") | is.na(.x))) |> 
-  mutate(across(everything(), parse_guess)) |> # convert likely numeric variables to numeric
-  relocate("well") |> # well as first column
-  relocate(any_of(c("row", "column")), .after = last_col()) # separate row and column info as last columns
-
-  
-```
-
-```{r}
-pre_filt |>
-
-filter( # only drop in all variables agree that the well is empty
-      !if_all(.cols = -c(), (\(x) all(is.na(x) | x %in% c("Empty", "empty")))) # drop if all are "Empty"
-     ) 
-
-
-if_else(test1 == "Empty", "empty", NA)
-```
-
-
-```{r}
-head(mtcars) %>%
-  filter(!if_all(everything(), ~ .x == "Empty"))
-
-
-(\x() any(x == "Empty", x == "empty", is.na(x)))
-
-(test1)
-
-(function (x) {paste(x, 'is awesome!')})('Keith')
-
-# new alternative shorthand
-test1 <- c("Empty", "Empty", "Empty")
-(\(x) all(is.na(x) | x %in% c("Empty", "empty")))(test1)
-```
 
 
