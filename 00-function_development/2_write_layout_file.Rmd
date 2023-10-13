@@ -1,0 +1,42 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Goal: starting from a tidy layout,
+write the tibble that will save as an excel or csv version
+
+```{r}
+library(tidyverse)
+library(platedescribr)
+```
+
+Get a sample layout
+```{r}
+SAMPLE_LAYOUTS <- fs::dir_ls("../01-sample_inputs")
+layout <- platedescribr::read_layout(SAMPLE_LAYOUTS[1])
+# layout
+# A tibble:48 × 7
+```
+
+Draft function (works) to go from a tidy layout to a layout file
+```{r}
+tidy_to_layout <- function(layout, ...){
+ layout |> 
+  mutate(across(everything(), as.character)) |> # to be able to combine types again
+  pivot_longer(-c("well", "row", "column"), names_to = "variable", values_to = "value") |> 
+  select(-"well") |> 
+  pivot_wider(names_from = "column", values_from = "value") |> 
+  arrange(.data$variable, .data$row) |> 
+  relocate("variable") 
+}
+```
+
+```{r}
+make_layout_template <- 
+  function(variables, plate_type){
+  
+}
+```
+
+

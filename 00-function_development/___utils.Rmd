@@ -1,0 +1,315 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Develop the utility functions for platedescribr package
+
+THESE AREN"T the FINAL VERSIONS OF THESE FUNCTIONS
+
+tiny final changes may happen in the package itself. 
+
+```{r}
+library(tidyverse)
+library(rlang) # for `:=`
+```
+
+extract row or column from a well name
+```{r}
+# non-exported helper
+wells_to_rows <- function(well_names){
+  gsub('[0-9]+', '', well_names)
+}
+
+# non-exported helper
+wells_to_cols <- function(well_names){
+  as.numeric(gsub("\\D", "", well_names))
+  } 
+```
+
+add empty wells to an incomplete layout
+```{r}
+add_empty_wells <- function(layout,
+                            plate_type = "384",
+                            .well_col = "well",
+                            ...) {
+  
+  # generate well names for full plate
+  wells <- tibble("{.well_col}" := well_names(plate_type, ...)) 
+  
+  filled <- right_join(layout, wells, by = .well_col)
+  
+  # add plate row and column, if layout has these
+  if ("row" %in% names(layout) & "column" %in% names(layout)) {
+    filled <- filled |> 
+      mutate("row" = wells_to_rows(.data[[.well_col]]), # will [[.well_col]] work in a package?
+            "column" = wells_to_cols(.data[[.well_col]])) # will [[.well_col]] work in a package?
+  }
+
+  filled
+}
+
+
+filled_layout <- add_empty_wells(layout)
+filled_layout
+
+dplyr::tibble(a = 1, b= 2)
+```
+
+generate names of plate wells
+```{r}
+well_names <- function(platetype, ..., dim1 = NULL, dim2 = NULL, .leading_zeroes = FALSE, .as_factor = FALSE) {
+  # function to create a string of well names for a desired plate type 
+  
+  # accept number or character input
+  platetype <- as.character(platetype)  
+  
+  # guide unusable custom dimensions
+  if(platetype == "custom") {
+    if(is.null(dim1) | is.null(dim2)) { 
+      stop("For 'custom' plate types, you must supply a vector to both `dim1` and `dim2`.")
+    }
+  }
+
+  if(!platetype %in% c("384", "96", "custom")){
+    stop(paste0("Unknown `.platetype` supplied: ", platetype, ". Please specify one of: '96', '384', or 'custom'."))
+  }
+  
+  # Generate well names  --------------------------------------------------------------
+    # generate all possible combinations of supplied vectors as 
+    wells <- switch(platetype, # accept number or character
+            "384" = expand_wells(LETTERS[1:16], c(1:24), .leading_zeroes),
+            "96" = expand_wells(LETTERS[1:8], c(1:12), .leading_zeroes),
+            "custom" = expand_wells(dim1, dim2), .leading_zeroes)
+ 
+    # turn into a factor if requested. 
+    if(.as_factor){ # order determined by first vector; see expand_wells() above
+      wells <- factor(wells, levels = wells)
+    }
+  
+  wells
+}
+```
+\
+```{r}
+dimensions_to_wells <- function(plate_rows, plate_cols, .leading_zeroes = FALSE) {
+
+  if(is.null(plate_rows) | is.null(plate_cols)) {
+    # ensure entries are not NULL -- expand.grid will silently output a corrupt dataframe
+    stop("Please supply a non-null vector to both 'plate_rows' and 'plate_cols'.")
+
+  } else {
+
+    expanded <- expand.grid("rows" = plate_rows, "cols" = plate_cols) |> 
+      arrange(.data$rows)
+      
+    # add leading zeroes to columns under 10 if requested
+    if(.leading_zeroes){
+      expanded <- expanded |>
+ mutate("cols" = if_else(.data$cols < 10,
+                                true = paste0("0", as.character(.data$cols)),
+                                false = as.character(.data$cols)))
+    }
+
+    out <- expanded |>
+      do.call(paste0, args =  _) |>
+      unique() # remove duplicate wells
+  }
+
+out
+}
+
+dimensions_to_wells(LETTERS[1:4],  c(1:4, 4 ,4), .leading_zeroes = TRUE)
+
+expand.grid("rows" = LETTERS[1:4], "cols" = c(1:4)) |> 
+      arrange(.data$rows) |> 
+        mutate("cols" = if_else(.data$cols < 10,
+                                true = paste0("0", as.character(.data$cols)),
+                                false = as.character(.data$cols))) |>
+        do.call(paste0, args =  _)
+```
+
+```{r}
+# helper function -- create chr vec of all possible combinations
+expand_wells <- function(dim1, dim2, .leading_zeroes = FALSE) {
+    # expand.grid("cols" = dim1, "rows" = dim2)
+ expand.grid("rows" = dim1, "cols" = dim2) |> 
+  dplyr::arrange(.data$rows)
+}
+
+  expand_wells(LETTERS[1:4],  c(1:4), .leading_zeroes = FALSE)
+```
+
+
+```{r}
+# helper function -- create chr vec of all possible combinations
+expand_wells <- function(dim1, dim2, .leading_zeroes = FALSE) {
+    # expand.grid("cols" = dim1, "rows" = dim2)
+    #  do.call(paste0, dplyr::arrange(expand.grid("cols" = dim1, "rows" = dim2), "cols"))
+
+    if(.leading_zeroes){
+      expanded <- dplyr::arrange(expand.grid("cols" = dim1, "rows" = dim2), .data$rows) |>
+                    mutate(rows = if_else(rows < 10,
+                        true = paste0("0", as.character(.data$rows)),
+                        false = as.character(.data$rows))) |>
+        do.call(paste0, args =  _)
+
+    } else {
+      expanded <- do.call(paste0, dplyr::arrange(expand.grid("cols" = dim1, "rows" = dim2), .data$rows))
+    }
+
+    expanded
+}
+
+expand_wells(dim1 = LETTERS[1:4], dim2 = c(1:4), .leading_zeroes = TRUE)
+ 
+# examples 
+# expand_wells(dim1 = LETTERS[1:4], dim2 = c(1:4), .leading_zeroes = TRUE)
+# # [1] "A01" "B01" "C01" "D01" "A02" "B02" "C02" "D02" "A03" "B03" "C03" "D03" "A04" "B04" "C04" "D04"
+# 
+# expand_wells(dim1 = LETTERS[1:4], dim2 = c(1:4), .leading_zeroes = FALSE)
+# # [1] "A1" "B1" "C1" "D1" "A2" "B2" "C2" "D2" "A3" "B3" "C3" "D3" "A4" "B4" "C4" "D4"
+```
+
+tidy well names -- coerce 
+```{r}
+## not sure in the end that we even want this function...
+tidy_wellnames <- function(wells, ...) {
+  ## definition of tidy:
+  
+  # captialize all letters
+  wells <- toupper(wells)
+  
+  # in normal well list
+  ####$ do add this--at least throw a warning if there are unusual well names
+}
+
+# tidied_wells <- 
+#   well_names("custom", dim1 = letters[1:10], dim2 = c(1:10)) |> 
+# tidy_wellnames()
+# 
+# well_names("custom", dim1 = letters[1:10], dim2 = c(1:10))
+```
+
+
+
+##### PLATE HANDLERS
+#' Wells to rows
+#'
+#' Given a well name (e.g. "A1"), extract the plate row ("A").
+#'
+#' @param well_names A vector of well names.
+#'
+#' @return A vector containing only the character elements of each well name.
+#' @export
+#'
+#' @examples
+#' wells_to_rows(c("A1", "A2", "B1", "B2"))
+#' # [1] "A" "A" "B" "B"
+#'
+wells_to_rows <- function(well_names){
+  gsub('[0-9]+', '', well_names)
+}
+
+
+#' Wells to cols
+#'
+#' Given a well name (e.g. "A1"), extract the plate column (1).
+#'
+#' @param well_names A vector containing only the character elements of each well name.
+#'
+#' @return A vector containing only the numeric elements of each well name.
+#' @export
+#'
+#' @examples
+#' wells_to_cols(c("A1", "A2", "B1", "B2"))
+#' # [1] 1 2 1 2
+#'
+wells_to_cols <- function(well_names){
+  as.numeric(gsub("\\D", "", well_names))
+}
+
+
+#' Add empty wells ### DOCUMENTATION NOT FINISHED######
+#'
+#' Add wells missing from the input layout. These wells are assigned `NA` for all variables.
+#'
+#' @param layout A layout tibble
+#' @param plate_type the type of plate
+#' @param .well_col A string--the name of the column that holds the well
+#' @param ... Unused, for extensibility
+#'
+#' @importFrom dplyr tibble right_join mutate
+#'
+#'
+#' @return the same layout, but with all wells in the chosen plate type
+#' @export
+add_empty_wells <- function(layout,
+                            plate_type = "384",
+                            .well_col = "well",
+                            ...) {
+
+  # generate well names for full plate
+  wells <- tibble("{.well_col}" := well_names(plate_type, ...))
+
+  filled <- right_join(layout, wells, by = .well_col)
+
+  # add plate row and column, if layout has these
+  if ("row" %in% names(layout) & "column" %in% names(layout)) {
+    filled <- filled |>
+      mutate("row" = wells_to_rows(.data[[.well_col]]), # will [[.well_col]] work in a package?
+             "column" = wells_to_cols(.data[[.well_col]])) # will [[.well_col]] work in a package?
+  }
+
+  filled
+}
+
+
+#' Get the names of wells from a given plate  ### DOCUMENTATION NOT FINISHED######
+#'
+#' @param platetype type of plate
+#' @param ... Unused, for extensibility
+#' @param dim1 plate rows
+#' @param dim2 plate cols
+#' @param .leading_zeroes add leading zeroes?
+#' @param .as_factor make the output a factor?
+#'
+#' @return a vector of well names.
+#' @export
+#'
+#' @examples
+#' well_names(platetype = 384)
+#'
+well_names <- function(platetype, ..., dim1 = NULL, dim2 = NULL, .leading_zeroes = FALSE, .as_factor = FALSE) {
+  # function to create a string of well names for a desired plate type
+
+  # accept number or character input
+  platetype <- as.character(platetype)
+
+  # guide unusable custom dimensions
+  if(platetype == "custom") {
+    if(is.null(dim1) | is.null(dim2)) {
+      stop("For 'custom' plate types, you must supply a vector to both `dim1` and `dim2`.")
+    }
+  }
+
+  if(!platetype %in% c("384", "96", "custom")){
+    stop(paste0("Unknown `.platetype` supplied: ", platetype, ". Please specify one of: '96', '384', or 'custom'."))
+  }
+
+  # Generate well names  --------------------------------------------------------------
+  # generate all possible combinations of supplied vectors as
+  wells <- switch(platetype, # accept number or character
+                  "384" = expand_wells(LETTERS[1:16], c(1:24), .leading_zeroes),
+                  "96" = expand_wells(LETTERS[1:8], c(1:12), .leading_zeroes),
+                  "custom" = expand_wells(dim1, dim2), .leading_zeroes)
+
+  # turn into a factor if requested.
+  if(.as_factor){ # order determined by first vector; see expand_wells() above
+    wells <- factor(wells, levels = wells)
+  }
+
+  wells
+}
+
+

@@ -1,0 +1,313 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+Messy version of the final post at
+https://github.com/r-lib/vctrs/issues/1881
+
+
+```{r}
+library(reprex)
+```
+
+```{r}
+ print(expand.grid(NULL, LETTERS))
+# [1] Var2     
+# <0 rows> (or 0-length row.names)
+# > expand.grid(NULL, LETTERS)
+# [1] Var2     
+# <0 rows> (or 0-length row.names)
+# > print(expanded) 
+# [1] Var2     
+# <0 rows> (or 0-length row.names)
+# > expanded 
+# [1] Var2     
+# <0 rows> (or 0-length row.names)
+# > 
+# > # no error message printed
+# > expanded <- expand.grid(NULL, LETTERS) 
+# > str(expand.grid(NULL, LETTERS)) 
+# 'data.frame':	0 obs. of  2 variables:
+#  $ Var2: NULL
+#  $     : chr 
+#  - attr(*, "out.attrs")=List of 2
+#   ..$ dim     : int [1:2] 0 26
+#   ..$ dimnames:List of 2
+#   .. ..$ Var1: NULL
+#   .. ..$ Var2: NULL
+# > str(expanded) # no error message
+# 'data.frame':	0 obs. of  2 variables:
+#  $ Var2: NULL
+#  $     : chr 
+#  - attr(*, "out.attrs")=List of 2
+#   ..$ dim     : int [1:2] 0 26
+#   ..$ dimnames:List of 2
+#   .. ..$ Var1: NULL
+#   .. ..$ Var2: NULL
+```
+
+```{r}
+dplyr::arrange(expand.grid(NULL, LETTERS))
+
+dplyr::arrange(expand.grid(NULL, NULL))
+
+dplyr::arrange(expand.grid(LETTERS, NULL))
+
+str(expand.grid(NULL, LETTERS))
+
+print(expanded)
+```
+```{r}
+dplyr::arrange(expand.grid(LETTERS, NULL))
+str(dplyr::arrange(expand.grid(LETTERS, NULL)))
+
+dplyr::arrange(expand.grid(NULL, LETTERS))
+str(expand.grid(NULL, LETTERS))
+```
+
+```{r}
+# in an R Notebook chunk
+expand.grid(NULL, LETTERS)
+
+#> Error in (function (..., row.names = NULL, check.rows = FALSE, check.names = TRUE,  : 
+#>   arguments imply differing number of rows: 1, 0
+
+print("code is still running . . . ")
+#>  [1] "code is still running . . . "
+
+```
+
+```{r}
+expanded
+str(expanded)
+```
+
+
+```{r}
+dplyr::arrange(expand.grid(LETTERS, NULL))
+dplyr::arrange(expand.grid(NULL, NULL))
+dplyr::arrange(expand.grid(NULL, c(1:3)))
+```
+
+``` r
+dplyr::arrange(expand.grid(LETTERS, NULL))
+#> [1] Var1
+#> <0 rows> (or 0-length row.names)
+dplyr::arrange(expand.grid(NULL, NULL))
+#> Error in `vec_slice()`:
+#> ! Unexpected `NULL`.
+#> ℹ In file 'slice.c' at line 322.
+#> ℹ This is an internal error that was detected in the vctrs package.
+#>   Please report it at <https://github.com/r-lib/vctrs/issues> with a reprex (<https://tidyverse.org/help/>) and the full backtrace.
+#> Backtrace:
+#>      ▆
+#>   1. ├─dplyr::arrange(expand.grid(NULL, NULL))
+#>   2. ├─dplyr:::arrange.data.frame(expand.grid(NULL, NULL))
+#>   3. │ ├─dplyr::dplyr_row_slice(.data, loc)
+#>   4. │ └─dplyr:::dplyr_row_slice.data.frame(.data, loc)
+#>   5. │   ├─dplyr::dplyr_reconstruct(vec_slice(data, i), data)
+#>   6. │   │ └─dplyr:::dplyr_new_data_frame(data)
+#>   7. │   │   ├─row.names %||% .row_names_info(x, type = 0L)
+#>   8. │   │   └─base::.row_names_info(x, type = 0L)
+#>   9. │   └─vctrs::vec_slice(data, i)
+#>  10. └─rlang:::stop_internal_c_lib(...)
+#>  11.   └─rlang::abort(message, call = call, .internal = TRUE, .frame = frame)
+dplyr:arrange(expand.grid(NULL, c(1:3)))
+#> Error in eval(expr, envir, enclos): object 'dplyr' not found
+```
+
+<sup>Created on 2023-09-29 with [reprex v2.0.2](https://reprex.tidyverse.org)</sup>
+
+```{r}
+dplyr:arrange(expand.grid(NULL, c(1:3)))
+```
+
+
+
+
+```{r}
+expanded <- expand.grid(NULL, LETTERS)
+str(expanded)
+print(expand.grid(NULL, LETTERS))
+```
+
+```{r}
+# all print the same error message
+print(expand.grid(NULL, LETTERS)) # error message 
+expand.grid(NULL, LETTERS)
+print(expanded) # error message
+expanded # error message
+
+# no error message
+expanded <- expand.grid(NULL, LETTERS) # no error message
+str(expand.grid(NULL, LETTERS)) # no error message
+str(expanded) # no error message
+
+##> console
+#> Error in (function (..., row.names = NULL, check.rows = FALSE, check.names = TRUE,  : 
+#>   arguments imply differing number of rows: 1, 0
+#> Error in (function (..., row.names = NULL, check.rows = FALSE, check.names = TRUE,  : 
+#>   arguments imply differing number of rows: 1, 0
+#> Error in (function (..., row.names = NULL, check.rows = FALSE, check.names = TRUE,  : 
+#>   arguments imply differing number of rows: 1, 0
+#> Error in (function (..., row.names = NULL, check.rows = FALSE, check.names = TRUE,  : 
+#>   arguments imply differing number of rows: 1, 0
+#> 'data.frame':	0 obs. of  2 variables:
+#>  $ Var2: NULL
+#>  $     : chr 
+#>  - attr(*, "out.attrs")=List of 2
+#>   ..$ dim     : int [1:2] 0 26
+#>   ..$ dimnames:List of 2
+#>   .. ..$ Var1: NULL
+#>   .. ..$ Var2: NULL
+#> 'data.frame':	0 obs. of  2 variables:
+#>  $ Var2: NULL
+#>  $     : chr 
+#>  - attr(*, "out.attrs")=List of 2
+#>   ..$ dim     : int [1:2] 0 26
+#>   ..$ dimnames:List of 2
+#>   .. ..$ Var1: NULL
+#>   .. ..$ Var2: NULL
+#>   
+#>   Error in (function (..., row.names = NULL, check.rows = FALSE, check.names = TRUE,  : 
+#>  arguments imply differing number of rows: 1, 0
+#>  
+expanded <- expand.grid(NULL, LETTERS)
+dplyr::arrange(expanded)
+
+expanded <- expand.grid(NULL, LETTERS)
+expanded
+#>   Error in (function (..., row.names = NULL, check.rows = FALSE, check.names = TRUE,  : 
+#>  arguments imply differing number of rows: 1, 0
+print("still running")
+#>  [1] "hi
+#>  
+#>  
+#>  
+expanded <- expand.grid(NULL, LETTERS)
+expanded
+#> Error in (function (..., row.names = NULL, check.rows = FALSE, check.names = TRUE,  : 
+#>  arguments imply differing number of rows: 1, 0
+print("still running")
+#> [1] "still running"
+
+```
+
+
+```{r}
+#> Error in (function (..., row.names = NULL, check.rows = FALSE, check.names = TRUE,  : 
+#>   arguments imply differing number of rows: 1, 0
+
+
+
+
+
+
+dplyr::arrange(expanded)
+```
+
+
+
+
+``` r
+dplyr::arrange(expand.grid(NULL, LETTERS))
+#> Error in `vec_slice()`:
+#> ! Unexpected `NULL`.
+#> ℹ In file 'slice.c' at line 322.
+#> ℹ This is an internal error that was detected in the vctrs package.
+#>   Please report it at <https://github.com/r-lib/vctrs/issues> with a reprex (<https://tidyverse.org/help/>) and the full backtrace.
+#> Backtrace:
+#>      ▆
+#>   1. ├─dplyr::arrange(expand.grid(NULL, LETTERS))
+#>   2. ├─dplyr:::arrange.data.frame(expand.grid(NULL, LETTERS))
+#>   3. │ ├─dplyr::dplyr_row_slice(.data, loc)
+#>   4. │ └─dplyr:::dplyr_row_slice.data.frame(.data, loc)
+#>   5. │   ├─dplyr::dplyr_reconstruct(vec_slice(data, i), data)
+#>   6. │   │ └─dplyr:::dplyr_new_data_frame(data)
+#>   7. │   │   ├─row.names %||% .row_names_info(x, type = 0L)
+#>   8. │   │   └─base::.row_names_info(x, type = 0L)
+#>   9. │   └─vctrs::vec_slice(data, i)
+#>  10. └─rlang:::stop_internal_c_lib(...)
+#>  11.   └─rlang::abort(message, call = call, .internal = TRUE, .frame = frame)
+```
+
+<sup>Created on 2023-09-29 with [reprex v2.0.2](https://reprex.tidyverse.org)</sup>
+
+
+
+```{r}
+
+# no issue
+arrange(expand.grid(NULL, NULL)) # forget an argument to arrange, get the error
+arrange(expand.grid(NULL, NULL), Var1)
+
+expand_arrange <- function(x = NULL, y = NULL){
+  #arrange(expand.grid(NULL, NULL), Var1)
+  dplyr::arrange(expand.grid(x, y))
+  
+# expand_arrange()
+# Error in `arrange()`:
+# ℹ In argument: `..1 = Var1`.
+# Caused by error:
+# ! object 'Var1' not found
+# Backtrace:
+#   1. global expand_arrange()
+#   3. dplyr:::arrange.data.frame(expand.grid(NULL, NULL), Var1)
+#   4. dplyr:::arrange_rows(.data, dots = dots, locale = .locale)
+#   6. dplyr:::mutate.data.frame(data, `:=`("{name}", !!dot), .keep = "none")
+#   7. dplyr:::mutate_cols(.data, dplyr_quosures(...), by)
+#   9. dplyr:::mutate_col(dots[[i]], data, mask, new_columns)
+#  10. mask$eval_all_mutate(quo)
+#  11. dplyr (local) eval() 
+}
+
+expand_arrange()
+expand_arrange(x = NULL, y = NULL)
+expand_arrange(x = LETTERS, y = NULL)
+expand_arrange(x = NULL, y = LETTERS)
+expand_arrange(y = LETTERS, x = LETTERS)
+
+dplyr::arrange(expand.grid(LETTERS, NULL))
+
+arrange(expand.grid(LETTERS, NULL))
+arrange(expand.grid(NULL, LETTERS)) # errors
+
+###### reprex
+# succeeds 
+missing_y <- expand.grid(LETTERS, NULL)
+str(missing_y)
+
+# errors 
+expand.grid(NULL, LETTERS)
+# Error in (function (..., row.names = NULL, check.rows = FALSE, check.names = TRUE,  : 
+#   arguments imply differing number of rows: 1, 0
+
+# error message doesn't print if output is assigned
+missing_x <- expand.grid(NULL, LETTERS)
+str(missing_x)
+
+arrange(missing_y)
+arrange(missing_x)
+# Error in `vec_slice()`:
+# ! Unexpected `NULL`.
+# ℹ In file slice.c at line 322.
+# ℹ Install the winch package to get additional debugging info the next time you get this error.
+# ℹ This is an internal error that was detected in the vctrs package.
+#   Please report it at <https://github.com/r-lib/vctrs/issues> with a reprex and the full backtrace.
+# Backtrace:
+#      ▆
+#   1. ├─dplyr::arrange(missing_x)
+#   2. ├─dplyr:::arrange.data.frame(missing_x)
+#   3. │ ├─dplyr::dplyr_row_slice(.data, loc)
+#   4. │ └─dplyr:::dplyr_row_slice.data.frame(.data, loc)
+#   5. │   ├─dplyr::dplyr_reconstruct(vec_slice(data, i), data)
+#   6. │   │ └─dplyr:::dplyr_new_data_frame(data)
+#   7. │   │   ├─row.names %||% .row_names_info(x, type = 0L)
+#   8. │   │   └─base::.row_names_info(x, type = 0L)
+#   9. │   └─vctrs::vec_slice(data, i)
+#  10. └─rlang:::stop_internal_c_lib(...)
+#  11.   └─rlang::abort(message, call = call, .internal = TRUE, .frame = frame)
+
+
+```
+

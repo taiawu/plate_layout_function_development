@@ -1,0 +1,255 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(tidyverse)
+library(tidyplate)
+
+layout <-  read_layout("../01-sample_inputs/test_standard_read.xlsx", .print_summary = FALSE, plate_notes = "adding my own custom plate note here") 
+```
+
+```{r}
+### ADD THIS TO PLATE HELPERS
+initialize_plate <- function(plate_type, ...) {
+  well_names <- make_well_names(plate_type, ...) 
+  
+  tibble("well" = well_names, 
+          "row" = get_well_row((well_names)),
+         "column" = get_well_col(well_names))
+}
+
+
+spread_variable <- 
+  function(variable_name, plate_type, save_path, ...){
+    
+    plate <- initialize_plate(plate_type, ...) |> 
+      arrange("column") |> 
+      pivot_wider(id_cols = "row", names_from = "column",  values_from = "column", values_fn = ~NA) |> 
+      rename("variable" = "row")
+    
+
+    header <- gsub(names(plate), pattern = "variable", replacement = variable_name)
+    plate <- rbind(header, plate)
+  }
+
+create_layout_template <- 
+  function(variables, plate_type, save_path, ...){
+    
+    lapply(variables, spread_variable, plate_type = plate_type) |> 
+      bind_rows()
+
+  }
+
+var1 <- spread_variable("compound", 384, "path")
+
+layout_template <- create_layout_template(c("compound", "concentration", "protein"), 384, "path")
+layout_template |>  write_csv("../04-sample_outputs/sample_layout_template.csv", col_names = FALSE)
+
+```
+```{r}
+new_layout <- 
+  read_csv("../04-sample_outputs/sample_layout_template.csv", col_names = FALSE)
+
+first_col <- names(new_layout)[[1]]
+
+new_layout |> 
+  group_by(.data[[first_col]]) |> 
+  tally()
+
+### find the entries which appear only once 
+new_layout |> 
+  rowwise() |> 
+  mutate(non_var = list(across(.cols = -"X1"))) |> 
+  group_by(non_var) |> 
+  tally() 
+
+new_layout |> 
+  mutate("variable" = if_else(.data[["X1"]] %in% c(LETTERS, letters),
+                              true = NA,
+                              false = .data[["X1"]] )) |> 
+  relocate("variable") |> 
+  fill("variable", .direction = "down") 
+# |> 
+#   filter(variable != X1)
+
+  mutate("varia")
+  rowwise() |> 
+  mutate(non_var = list(across(.cols = -"X1"))) |> 
+  group_by(non_var) |> 
+  tally()
+
+
+str(LETTERS)
+
+
+
+#### (1) numerics
+```
+
+
+
+```{r}
+create_layout_template <- 
+  function(variables, plate_type, save_path, ...){
+    
+    lapply(variables, spread_variable, plate_type = plate_type) |> 
+      bind_rows()
+
+  }
+
+empty_layout <- create_layout_template(c("one", "two", 3, "compound"), "384", "fake_save")
+
+empty_layout
+
+layout_temp <- write_layout_template("one", "384", "fake", .fill_value = 1)
+layout_temp2 <- write_layout_template("two", "384", "fake", .fill_value = 1)
+
+empty_layout |> write_csv("../04-sample_outputs/sample_layout.csv")
+
+new_layout <- read_layout("../04-sample_outputs/sample_layout.csv")
+
+new_layout
+
+```
+
+```{r}
+make_layout_wide <- function(data, .filt_col, .fill_empties = "Empty") {
+  data %>%
+    select(.data$row, .data$column, {{ .filt_col }}) %>%
+    mutate("{.filt_col}" := replace_na(!!sym(.filt_col), .fill_empties)) %>%
+    distinct() %>%
+    mutate(column = as.numeric(.data$column)) %>%
+    arrange(.data$column) %>%
+    pivot_wider(id_cols = .data$row, names_from = .data$column, values_from = {{ .filt_col }}) %>%
+    mutate(across(cols = everything(), as.character())) %>%
+    rbind(names(.), .) %>%
+    mutate(Type = {{ .filt_col }} ) %>%
+    relocate(all_of("Type")) %>%
+    unnest(cols = c(everything())) # this is a save that keeps bind_rows() from failing if these are list columns, but they really shouldn't be...
+}
+
+make_layout_wide(layout, "cmpd")
+
+layout |> 
+  select(c("row", "column")) |> 
+  distinct() |> 
+  mutate("column" = as.numeric(.data$column)) |> 
+  arrange(column) |> 
+  pivot_wider(id_cols = .data$row, names_from = .data$column,  values_from = column, values_fn = ~NA)  |> 
+  mutate("Variable" = "variable_name") |> 
+  relocate("Variable")
+
+
+
+
+
+```
+
+
+```{r}
+#' Update starting layout with final conditions
+#'
+#' @param transfers the transfers tibble
+#' @param raw_layout the raw layout, as uploaded by the user
+#'
+#' @return a list of 2 elements. layout, the updated layout, and wide_layout, the updated layout in wideform, ready to be saved as a csv.
+#'
+#' @importFrom dplyr filter rename select across right_join
+#' @importFrom tidyselect all_of everything
+#' @importFrom purrr set_names
+#' @export
+make_updated_layout <- function(transfers, raw_layout) {
+
+  updated_layout <- transfers %>%
+    filter(.data$transfer_type  == "compound_transfer") %>% # not dilutions
+    rename("well" = .data$`Destination Well`) %>%
+    select(all_of(c("well", "compound", "final_conc", "rounded_up"))) %>%
+    set_names(c("well", "final_compound", "final_concentration", "concentration_rounded_by")) %>%
+    right_join( . , raw_layout, by = "well")
+
+  to_layout_block <-  updated_layout %>%
+    select(-any_of(c("row", "column", "well"))) %>%
+    names()
+
+  for_wide <- updated_layout %>%
+    mutate(across(.cols = everything(), as.character)) %>%
+    add_empty_wells() %>%
+    replace(is.na(.), "Empty") %>%
+    bind_layouts( . , to_layout_block )
+
+  list(layout =  updated_layout,
+       wide_layout = for_wide)
+
+}
+
+#' Make wideform layouts for multiple variables
+#'
+#' A helper function for make_updated_layout().
+#' Relies on its own helper function, make_layout_wide().
+#' Ultimately, this function and its helpers should be a part of a different package--likely the layouts package, if we ever get that thing done.
+#'
+#' @param data a layout
+#' @param var_list the columns in the layout to be make into individual layout blocks
+#'
+#' @return a tibble of wideform layout blocks, ready to be saved as a csv
+#'
+#' @importFrom dplyr bind_rows
+#' @importFrom purrr set_names
+#'
+#' @export
+bind_layouts <- function(data, var_list) {
+  var_list %>%
+    lapply( . , function(x) make_layout_wide(data, x)) %>%
+    bind_rows()   %>%
+    set_names(c("Type", "row", c(1:(ncol(.)-2))))
+}
+
+
+#' Convert a single layout variable into a wideform layout block
+#'
+#' A helper function to make_updated_layout.
+#' Ultimately, this function should be a part of a different package--likely the layouts package, if we ever get that thing done.
+#'
+#' @param data the layout
+#' @param .filt_col a single column in data to be converted into a layout block
+#' @param .fill_empties what to fill in for wells without contents. Defaults to "Empty"
+#'
+#' @return A tibble, containing a wideform layout block.
+#'
+#' @importFrom dplyr select mutate distinct arrange across relocate
+#' @importFrom tidyr replace_na pivot_wider unnest
+#' @importFrom tidyselect everything
+#' @importFrom rlang `:=`
+#'
+#' @export
+make_layout_wide <- function(data, .filt_col, .fill_empties = "Empty") {
+  data %>%
+    select(.data$row, .data$column, {{ .filt_col }}) %>%
+    mutate("{.filt_col}" := replace_na(!!sym(.filt_col), .fill_empties)) %>%
+    distinct() %>%
+    mutate(column = as.numeric(.data$column)) %>%
+    arrange(.data$column) %>%
+    pivot_wider(id_cols = .data$row, names_from = .data$column, values_from = {{ .filt_col }}) %>%
+    mutate(across(cols = everything(), as.character())) %>%
+    rbind(names(.), .) %>%
+    mutate(Type = {{ .filt_col }} ) %>%
+    relocate(all_of("Type")) %>%
+    unnest(cols = c(everything())) # this is a save that keeps bind_rows() from failing if these are list columns, but they really shouldn't be...
+}
+
+```
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+

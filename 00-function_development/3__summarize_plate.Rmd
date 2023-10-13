@@ -1,0 +1,226 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(tidyverse)
+library(tidyplate)
+```
+
+Get a sample layout
+```{r}
+SAMPLE_LAYOUTS <- fs::dir_ls("../01-sample_inputs")
+layout <- platedescribr::read_layout(SAMPLE_LAYOUTS[2])
+# layout
+# A tibble:48 × 7
+```
+
+```{r}
+summarise_plate(layout)
+summarize_plate(layout)
+```
+
+
+Style the function script
+```{r}
+styler::style_file("../00-function_development/01-updated_functions/summarise_plate.R")
+```
+
+Read in the script containing the function to test
+```{r}
+source("../00-function_development/01-updated_functions/summarise_plate.R")
+print(summarise_plate(layouts[[9]]))
+```
+
+
+
+
+Create a high-level overview of plate contents, including custom notes. 
+
+The summary includes:
+- the number of unique conditions specified in the plate
+- the number of wells
+- the names and values of all experimental variables
+- all notes on both wells and plates
+
+See also: annotate_plate() and annotate_well()
+
+```{r}
+library(glue)
+
+print_variable_summary <- 
+  function(layout, variable_name, ...){
+  
+    # get stuff like "cmpd1 in 24 wells"
+  var_counts <-
+      layout |> 
+      select(all_of(c("well", variable_name))) |> 
+      distinct() |> 
+      group_by(.data[[variable_name]]) |>
+      tally() |> 
+      mutate(msg = paste0("--- {blue ", .data[[variable_name]], 
+                          "} in ", .data$n, " wells\n")) |> 
+      pull(msg)
+  
+  # don't include variable summaries which cannot be glued
+  tryCatch({var_name <- glue_col(.literal = TRUE, "{yellow {bold {variable_name}}} (type: {glue_collapse(typeof(layout[[variable_name]]))}), includes: \n {glue_col({glue_collapse(var_counts)})}\n")
+  }, error = function(e) {var_name <- glue_col(.literal = TRUE, "{yellow {bold {variable_name}}} (type: {glue_collapse(typeof(layout[[variable_name]]))}) -- variable couldn't be printed. Does it contain special characters? \n")
+  }, finally = function(f) {var_name <- glue_col("variable could not be printed")
+
+           })
+    
+  }
+
+print_summary <- function(layout, plate_notes = "none", ...){ ## FAILS WITH SOME SPECIAL CHARACTERS -- write something for this 
+  
+  # get a few important values
+  n_wells <- n_distinct(layout$well)
+  n_variables <- length(names(layout)[!names(layout) %in% c("well", "row", "column", "condition")])
+  variables <- names(layout)[!names(layout) %in% c("well", "row", "column", "condition")]
+
+   # get plate heading
+   plate_heading <- glue_col(.literal = TRUE,"Experiment containing {green {n_wells} wells}, with {green {n_variables}} {yellow experimental variables}")
+
+   plate_msgs <- lapply(variables, print_variable_summary, layout = layout)
+
+   all_notes <- tryCatch(glue_col(.literal = TRUE,"{glue_collapse(plate_notes, sep = '\n ')}"), error = function(e){})
+
+  var_summary <- glue_col(.literal = TRUE,"{plate_heading} \n{glue_collapse(plate_msgs, sep = '\n \n')} \n \n{magenta {bold Notes:}} \n{plate_notes}")
+
+}
+
+
+
+layouts <- lapply(SAMPLE_LAYOUTS, tidyplate::read_layout)
+
+print(print_plate_summary(layouts[[3]]))
+
+# still fails, probably due to some special characters...
+print(print_summary(layouts[[10]] |>  select(-SMILES))) # succeeds
+print(print_plate_summary(layouts[[10]])) # fails
+```
+
+```{r}
+ use_crayon = FALSE
+
+
+  custom_glue <- ifelse(use_crayon,
+                        yes = glue::glue_col,
+                        no = glue::glue)
+  
+  n_wells <- 1
+  n_variables <-1
+  
+  custom_glue(.literal = TRUE, "Experiment containing {n_wells} wells, with {n_variables} experimental variables")
+  
+  "Experiment containing {green {n_wells} wells}, with {green {n_variables}} {yellow experimental variables}"
+```
+
+
+
+
+
+## summarize, without glue_col for saving to PDF
+```{r}
+summarise_plate <- function(layout, plate_notes = "none", use_crayon = FALSE, ...) {
+  
+  # get a few important values
+  n_wells <- n_distinct(layout$well)
+  n_variables <- length(names(layout)[!names(layout) %in% c("well", "row", "column", "condition")])
+  variables <- names(layout)[!names(layout) %in% c("well", "row", "column", "condition")]
+
+  # # depending on argument, change the glue function used
+  # custom_glue <- ifelse(use_crayon,
+  #                       yes = glue::glue_col,
+  #                       no = glue::glue)
+   plate_msgs <- lapply(variables, summarise_variable, layout = layout, use_crayon = use_crayon)
+   
+  if(use_crayon){
+   # get plate heading
+  plate_heading <- glue_col(.literal = TRUE, "Experiment containing {green {n_wells} wells}, with {green {n_variables}} {yellow experimental variables}")
+
+  all_notes <- tryCatch(glue_col(.literal = TRUE, "{glue_collapse(plate_notes, sep = '\n ')}"), error = function(e) {
+    "Notes could not be printed."
+  })
+
+  var_summary <- glue_col(.literal = TRUE, "{plate_heading} \n \n{magenta {bold Notes:}} \n{plate_notes} \n \n{glue_collapse(plate_msgs, sep = '\n \n')}")
+
+
+  } else {
+      # get plate heading
+  plate_heading <- glue(.literal = TRUE, "Experiment containing {n_wells} wells, with {n_variables} experimental variables")
+
+  all_notes <- tryCatch(glue(.literal = TRUE, "{glue_collapse(plate_notes, sep = '\n ')}"), error = function(e) {
+    "Notes could not be printed."
+  })
+
+  var_summary <- glue(.literal = TRUE, "{plate_heading} \n \n NOTES: \n{plate_notes} \n \n{glue_collapse(plate_msgs, sep = '\n \n')}")
+    
+  }
+   
+     print(var_summary) 
+
+}
+
+summarize_plate <- summarise_plate
+
+summarise_variable <-
+  function(layout, variable_name, use_crayon = FALSE, ...) {
+    # get stuff like "cmpd1 in 24 wells"
+    
+     var_counts <-
+      layout |>
+      select(all_of(c("well", variable_name))) |>
+      distinct() |>
+      group_by(.data[[variable_name]]) |>
+      tally() 
+     
+    if(use_crayon){
+      
+     var_counts <- 
+      var_counts |>
+      mutate("msg" = paste0(
+        "--- {blue ", .data[[variable_name]],
+        "} in ", .data$n, " wells\n"
+      ))
+     
+     } else {
+       
+    var_counts <- 
+      var_counts |>
+      mutate("msg" = paste0(
+        "--- ", .data[[variable_name]],
+        " in ", .data$n, " wells\n"
+      ))
+     
+     }
+     
+     var_msg <- var_counts |>  pull("msg")
+     
+    tryCatch(
+      {
+        if(use_crayon){
+        var_name <- glue_col(.literal = TRUE, "{yellow {bold {variable_name}}} (type: {glue_collapse(typeof(layout[[variable_name]]))}), includes: \n {glue_col({glue_collapse(var_msg)})}\n")
+      } else {
+         var_name <- glue(" >> {variable_name} (type: {glue_collapse(typeof(layout[[variable_name]]))}), includes: \n {glue_collapse(var_msg)}\n")
+      }
+        },
+      error = function(e) {
+         if(use_crayon){
+        var_name <- glue_col(.literal = TRUE, "{yellow {bold {variable_name}}} (type: {glue_collapse(typeof(layout[[variable_name]]))}) -- variable couldn't be printed. Does it contain special characters? \n")
+      } else {
+       var_name <- glue(" >> {variable_name} (type: {glue_collapse(typeof(layout[[variable_name]]))}) -- variable couldn't be printed. Does it contain special characters? \n") 
+      }
+        },
+      finally = function(f) {
+        var_name <- glue_col("variable could not be printed")
+      }
+    )
+  
+  }
+
+plate_summary <- summarise_plate(layout, use_crayon = FALSE)
+```
+

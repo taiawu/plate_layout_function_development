@@ -1,0 +1,72 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(tidyverse)
+library(tidyplate)
+```
+
+Read in a layout file, which by default, will print a summary of the plate contents. 
+```{r}
+LAYOUT <- "dose_response_layout.xlsx"
+layout <- read_layout(LAYOUT, plate_notes = "adding my own custom plate note here") 
+```
+
+Or you can print a summary of it's contents at any other time using summarise_plate()
+```{r}
+summarise_plate(layout)
+```
+
+You can plot the plate layouts 
+```{r}
+plate_plot <- plateview_plot(layout, show_empty_wells = TRUE, "compound_conc_uM")
+plate_plot #+ theme(legend.position = "none")
+```
+
+Layouts are most helpful when combined with the data associated with each well
+```{r}
+labeled <- data |> 
+  left_join(layout, by = "well")
+
+```
+
+Because it provides a streamlined and tidy way of plotting/analyzing data
+```{r}
+
+```
+
+
+You can create a new layout file by passing the experimetnal variables to be considered to make_layout_template()
+```{r}
+make_layout_template(variables = , 
+                     plate_type = ,
+                     path = , 
+                     ...)
+```
+
+
+are standard ggplots, 
+Once the layout is read in, you can add custom annotations to specific wells, or the entire plate.
+```{r}
+# either a single annotation
+layout <- annotate_plate(layout, annotation = "something important to remember about this plate")
+
+# or multiple annotations at the same time
+layout <- annotate_plate(layout, annotation = c("a note", "another note", "a third note")) 
+
+# to a single well
+layout <- annotate_well(well = "A1", annotation = "something weird happened in this well")
+
+# or multiple wells
+layout <- annotate_well(well = c("A1", "A2", "B1", "B2"), annotation = "remember something about these wells")
+```
+
+
+
+
